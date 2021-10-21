@@ -1,10 +1,17 @@
 import sys
 import pandas as pd 
-import sqlalchemy
 from sqlalchemy import create_engine
 
 
 def load_data(messages_filepath, categories_filepath):
+    """Loads dataframe from messages and categories files
+
+    Args:
+        messages_filepath: path to messages file
+        categories_filepath: path to categories file
+    Returns:
+        df: dataframe
+    """
     # load messages dataset
     messages = pd.read_csv(messages_filepath)
 
@@ -12,10 +19,10 @@ def load_data(messages_filepath, categories_filepath):
     categories = pd.read_csv(categories_filepath) 
     
     # merge datasets into dataframe
-    df = pd.merge(messages, categories, on=['id'])
+    df = pd.merge(messages, categories, on=['id'], how='inner')
     
     # create a dataframe of the 36 individual category columns
-    categories = categories['categories'].str.split(';', expand=True)
+    categories = df['categories'].str.split(';', expand=True)
     row = categories.iloc[0]
     # get list of category names
     category_colnames = []
@@ -31,15 +38,20 @@ def load_data(messages_filepath, categories_filepath):
         categories[column] = categories[column].astype(int)
     
     # drop the original categories column from `df`
-    df.drop('categories', axis=1, inplace=True)
+    df.drop(columns=['categories'], axis=1, inplace=True)
     # concatenate the original dataframe with the new `categories` dataframe
-    df = pd.concat([df, categories], axis=1)
+    df = pd.concat([df, categories], join='inner', axis=1)
     
     return df
 
 def clean_data(df):
-    # drop NaN values
-    df = df.dropna()
+    """Cleans dataframe, drop NaN values and remove duplicates
+
+        Args:
+            df: pandas dataframe on which we are operating
+        Returns:
+            df: cleaned dataframe
+        """
     
     # drop duplicates
     df = df.drop_duplicates()
@@ -47,6 +59,14 @@ def clean_data(df):
     return df
 
 def save_data(df, database_filename):
+    """Saves dataframe to database with specified name
+
+        Args:
+            df: pandas dataframe on which we are operating
+            database_filename: name of database
+        Returns:
+            None
+        """
     engine = create_engine(f'sqlite:///{database_filename}')
     df.to_sql('dataframe', engine, index=False) 
 

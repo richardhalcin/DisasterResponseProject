@@ -39,28 +39,52 @@ model = joblib.load("../models/classifier.pkl")
 def index():
     
     # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
-    genre_counts = df.groupby('genre').count()['message']
-    genre_names = list(genre_counts.index)
+    medical_counts = df.groupby('medical_help').count()['message']
+    medical_names = ['no', 'yes']
+
+    data = []
+    categories_df = df.drop(columns=['id', 'genre', 'message', 'original'], axis=1)
+    for col in categories_df.columns:
+        data.append((categories_df[(categories_df[col] == 1)]).shape[0])
+    col_names = list(categories_df.columns.values)
+
+
     
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
             'data': [
                 Bar(
-                    x=genre_names,
-                    y=genre_counts
+                    x=col_names,
+                    y=data
                 )
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Number of messages in each category',
                 'yaxis': {
                     'title': "Count"
                 },
                 'xaxis': {
-                    'title': "Genre"
+                    'title': "Category name"
+                }
+            }
+        },
+        {
+            'data': [
+                Bar(
+                    x=medical_names,
+                    y=medical_counts
+                )
+            ],
+
+            'layout': {
+                'title': 'Count of medical help messages vs others',
+                'yaxis': {
+                    'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Is medical help message?"
                 }
             }
         }

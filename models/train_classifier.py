@@ -3,13 +3,10 @@ import nltk
 nltk.download(['punkt','wordnet'])
 
 import pickle
-import numpy as np
 import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-import sqlalchemy
 from sqlalchemy import create_engine
-from sklearn.metrics import confusion_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.ensemble import RandomForestClassifier
@@ -20,11 +17,20 @@ from sklearn.model_selection import GridSearchCV
 
 
 def load_data(database_filepath):
+    """Loads dataframe from database
+
+    Args:
+        database_filepath: path to database
+    Returns:
+        X: dataframe of messages
+        Y: dataframe of categories
+        category_names: list of category names
+    """
     engine = create_engine(f'sqlite:///{database_filepath}')
     df = pd.read_sql_table('dataframe', con=engine)
-
+    print(df.groupby('genre').count()['message'])
     X = df['message']
-    Y = df.drop(['id','message','original', 'genre'], axis=1)
+    Y = df.drop(['id', 'message', 'original', 'genre'], axis=1)
     
     category_names = []
     for col_name in Y.columns: 
@@ -34,6 +40,13 @@ def load_data(database_filepath):
 
 
 def tokenize(text):
+    """Tokenize and lemmatize and normalize input text
+
+    Args:
+        text: input text
+    Returns:
+        clean_tokens: list of tokenized, lemmatized, normalized tokens
+    """
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
 
@@ -46,25 +59,45 @@ def tokenize(text):
 
 
 def build_model():
+    """Builds model. Pipeline of CountVectorizer, TFidf transformer and MultiOutputClassifier of Random Forest
+
+    Returns:
+        model: Model
+    """
     pipeline = Pipeline([
     ('vect', CountVectorizer(tokenizer=tokenize)),
     ('tfidf', TfidfTransformer()),
     ('clf', MultiOutputClassifier(RandomForestClassifier()))
     ])
-    return pipeline
 
-def display_results(y_test, y_pred):
-    i = 0
-    for col in y_test:
-        confusion_mat = classification_report(y_test[col], y_pred[:, i])
-        print("Confusion Matrix:\n", confusion_mat)
-        i = i + 1
-    accuracy = (y_pred == y_test).mean()
-    print("Accuracy:", accuracy)
+    parameters = {
+        'vect__max_df': (0.5, 1.0),
+        'tfidf__use_idf': (True, False),
+    }
+
+    model = GridSearchCV(pipeline, param_grid= parameters)
+    return model
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """Prints models stats
+
+        Args:
+            y_test: category values of test dataset
+            y_pred: predicted values
+        Returns:
+            None
+        """
+
     y_pred = model.predict(X_test)
-    display_results(Y_test, y_pred)
+
+    i = 0
+    for col in Y_test:
+        report = classification_report(Y_test[col], y_pred[:, i])
+        print("Classification report:\n", report)
+        i = i + 1
+    accuracy = (y_pred == Y_test).mean()
+    print("Accuracy:", accuracy)
+    print("\nBest Parameters:", model.best_params_)
 
 
 def save_model(model, model_filepath):
