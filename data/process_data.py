@@ -20,28 +20,7 @@ def load_data(messages_filepath, categories_filepath):
     
     # merge datasets into dataframe
     df = pd.merge(messages, categories, on=['id'], how='inner')
-    
-    # create a dataframe of the 36 individual category columns
-    categories = df['categories'].str.split(';', expand=True)
-    row = categories.iloc[0]
-    # get list of category names
-    category_colnames = []
-    for col in row:
-        category_colnames.append(col[0:-2])
-    # rename categories columns    
-    categories.columns = category_colnames    
-    
-    for column in categories:
-        # set each value to be the last character of the string
-        categories[column] = categories[column].apply(lambda x: x[-1])
-        # convert column from string to numeric
-        categories[column] = categories[column].astype(int)
-    
-    # drop the original categories column from `df`
-    df.drop(columns=['categories'], axis=1, inplace=True)
-    # concatenate the original dataframe with the new `categories` dataframe
-    df = pd.concat([df, categories], join='inner', axis=1)
-    
+
     return df
 
 def clean_data(df):
@@ -52,9 +31,32 @@ def clean_data(df):
         Returns:
             df: cleaned dataframe
         """
-    
+    # create a dataframe of the 36 individual category columns
+    categories = df['categories'].str.split(';', expand=True)
+    row = categories.iloc[0]
+    # get list of category names
+    category_colnames = []
+    for col in row:
+        category_colnames.append(col[0:-2])
+    # rename categories columns
+    categories.columns = category_colnames
+
+    for column in categories:
+        # set each value to be the last character of the string
+        categories[column] = categories[column].apply(lambda x: x[-1])
+        # convert column from string to numeric
+        categories[column] = categories[column].astype(int)
+
+    # drop the original categories column from `df`
+    df.drop(columns=['categories'], axis=1, inplace=True)
+    # concatenate the original dataframe with the new `categories` dataframe
+    df = pd.concat([df, categories], join='inner', axis=1)
+
     # drop duplicates
     df = df.drop_duplicates()
+
+    ### remove non binary values from related column
+    df = df[df['related'] != 2]
     
     return df
 
@@ -68,7 +70,7 @@ def save_data(df, database_filename):
             None
         """
     engine = create_engine(f'sqlite:///{database_filename}')
-    df.to_sql('dataframe', engine, index=False) 
+    df.to_sql('dataframe', engine, index=False, if_exists='replace')
 
 
 def main():

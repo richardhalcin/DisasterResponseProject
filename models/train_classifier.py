@@ -1,11 +1,13 @@
 import sys
 import nltk
 nltk.download(['punkt','wordnet'])
+nltk.download('stopwords')
 
 import pickle
 import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 from sqlalchemy import create_engine
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -48,6 +50,8 @@ def tokenize(text):
         clean_tokens: list of tokenized, lemmatized, normalized tokens
     """
     tokens = word_tokenize(text)
+    # remove stop words
+    tokens = [t for t in tokens if t not in stopwords.words("english")]
     lemmatizer = WordNetLemmatizer()
 
     clean_tokens = []
@@ -73,6 +77,7 @@ def build_model():
     parameters = {
         'vect__max_df': (0.5, 1.0),
         'tfidf__use_idf': (True, False),
+        'clf__estimator__n_estimators': (50, 100),
     }
 
     model = GridSearchCV(pipeline, param_grid= parameters)
